@@ -8,6 +8,8 @@
 
 #import "MWKProgressIndicator.h"
 
+#import <AVFoundation/AVFoundation.h>
+
 #define MWKProgressIndicatorHeight 64.0f
 
 @implementation MWKProgressIndicator
@@ -25,9 +27,9 @@
     static MWKProgressIndicator *indicator = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken,^
-    {
-        indicator = [MWKProgressIndicator new];
-    });
+                  {
+                      indicator = [MWKProgressIndicator new];
+                  });
     return indicator;
 }
 
@@ -103,10 +105,10 @@
 - (void)setTopLocationValue:(float)value withDuration:(float)duration
 {
     [UIView animateWithDuration:duration delay:0.0 usingSpringWithDamping:0.7 initialSpringVelocity:1.0 options:UIViewAnimationOptionCurveEaseOut animations:^
-    {
-        [self setFrame:CGRectMake(0, value, self.bounds.size.width, self.bounds.size.height)];
-    }
-    completion:nil];
+     {
+         [self setFrame:CGRectMake(0, value, self.bounds.size.width, self.bounds.size.height)];
+     }
+                     completion:nil];
 }
 
 + (void)updateProgress:(float)progress
@@ -123,25 +125,42 @@
         _progress = progress;
         
         [UIView animateWithDuration:0.5 delay:0.0 usingSpringWithDamping:0.8 initialSpringVelocity:1.0 options:UIViewAnimationOptionCurveEaseInOut animations:^
-        {
-            _progressTrack.frame = CGRectMake(0, 0, units * progress, self.bounds.size.height);
-        }
-        completion:nil];
+         {
+             _progressTrack.frame = CGRectMake(0, 0, units * progress, self.bounds.size.height);
+         }
+                         completion:nil];
     }
 }
 
 + (void)updateMessage:(NSString *)message
 {
-    MWKProgressIndicator *indicator = [MWKProgressIndicator sharedIndicator];
-    [indicator updateMessage:message];
+    [MWKProgressIndicator updateMessage:message type:MWKProgressMessageUpdateTypeText];
 }
+
++ (void)updateMessage:(NSString *)message type:(MWKProgressMessageUpdateType)type
+{
+    dispatch_async(dispatch_get_main_queue(), ^
+                   {
+                       if (type == MWKProgressMessageUpdateTypeAll || type == MWKProgressMessageUpdateTypeText)
+                       {
+                           MWKProgressIndicator *indicator = [MWKProgressIndicator sharedIndicator];
+                           [indicator updateMessage:message];
+                       }
+                       
+                       if (type == MWKProgressMessageUpdateTypeAll || type == MWKProgressMessageUpdateTypeVoice)
+                       {
+                           [MWKProgressIndicator speakMessage:message];
+                       }
+                   });
+}
+
 
 - (void)updateMessage:(NSString *)message
 {
     dispatch_async(dispatch_get_main_queue(), ^
-    {
-        _titleLabel.text = message;
-    });
+                   {
+                       _titleLabel.text = message;
+                   });
 }
 
 + (void)showErrorMessage:(NSString *)errorMessage
@@ -165,34 +184,50 @@
         
         [self setTopLocationValue:-MWKProgressIndicatorHeight withDuration:hideDuration];
         
-
+        
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(hideDuration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^
-        {
-            [self updateProgress:0.0];
-            
-            [self setTopLocationValue:0 withDuration:hideDuration];
-            self.backgroundColor = color;
-            [self updateMessage:message];
-        });
-
+                       {
+                           [self updateProgress:0.0];
+                           
+                           [self setTopLocationValue:0 withDuration:hideDuration];
+                           self.backgroundColor = color;
+                           [self updateMessage:message];
+                       });
+        
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((duration+hideDuration) * NSEC_PER_SEC)), dispatch_get_main_queue(),^
-        {
-           
-           [self setTopLocationValue:-MWKProgressIndicatorHeight withDuration:hideDuration];
-           
-           dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(hideDuration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^
-            {
-                
-                self.backgroundColor = [UIColor whiteColor];
-                _lock = NO;
-            });
-        });
+                       {
+                           
+                           [self setTopLocationValue:-MWKProgressIndicatorHeight withDuration:hideDuration];
+                           
+                           dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(hideDuration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^
+                                          {
+                                              
+                                              self.backgroundColor = [UIColor whiteColor];
+                                              _lock = NO;
+                                          });
+                       });
     });
 }
 
 - (void)updateTrackColor:(UIColor *)color
 {
     _progressTrack.backgroundColor = color;
+}
+
++ (void)speakMessage:(NSString *)message
+{
+    static AVSpeechSynthesizer *synthesizer = nil;
+    
+    if (!synthesizer)
+    {
+        synthesizer = [AVSpeechSynthesizer new];
+    }
+    
+    AVSpeechUtterance *utterance = [[AVSpeechUtterance alloc] initWithString:message];
+    utterance.voice = [AVSpeechSynthesisVoice voiceWithLanguage:@"en-US"];
+    utterance.rate = 0.3;
+    
+    [synthesizer speakUtterance:utterance];
 }
 
 @end

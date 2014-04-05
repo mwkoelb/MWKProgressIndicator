@@ -235,9 +235,7 @@
 - (void)orientationChanged:(NSNotification *)notification
 {
     CGFloat screenWidth=[MWKProgressIndicator getScreenWidth];
-    
-    self.frame = CGRectMake(0, -MWKProgressIndicatorHeight, screenWidth,
-                            MWKProgressIndicatorHeight);
+    self.frame = CGRectMake(0, -MWKProgressIndicatorHeight, screenWidth,MWKProgressIndicatorHeight);
     _titleLabel.frame=CGRectMake(0, statusBarHeight, screenWidth, MWKProgressIndicatorHeight - statusBarHeight);
 }
 
